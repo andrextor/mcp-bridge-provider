@@ -1,5 +1,5 @@
-import { getIdentifier } from "../state.ts";
-import { CheckoutCreateSchema } from "../../schemas/checkout.schema.ts";
+import { getIdentifier } from "../state";
+import { CheckoutCreateSchema } from "../../schemas/checkout.schema";
 import type { McpServer as McpServerType } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerCheckoutCreateTool(
