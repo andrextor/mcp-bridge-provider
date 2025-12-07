@@ -1,15 +1,14 @@
 {
     "version": 2,
-    "builds": [
-        {
-            "src": "index.js",
-            "use": "@vercel/node"
+    "functions": {
+        "api/mcp.js": {
+            "runtime": "nodejs20.x"
         }
-    ],
+    },
     "routes": [
         {
             "src": "/mcp",
-            "dest": "/index.js"
+            "dest": "/api/mcp.js"
         }
     ]
 }
