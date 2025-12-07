@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "endpoint": {
       "type": "http",
-      "url": "https://<YOUR_PROJECT>.vercel.app/mcp"
+      "url": "https://mcp-bridge-provider-18ln.vercel.app/mcp"
     }
   }
 }
