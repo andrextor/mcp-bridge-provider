@@ -1,7 +1,7 @@
 {
   "name": "mcp-bridge-provider",
   "version": "1.0.0",
-  "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, and more).",
+  "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, Gateway REST, and more).",
   "entry_point": "index.js",
   "capabilities": {
     "logging": "debug"
@@ -70,11 +70,33 @@
   },
 
   "tools": {
+    "settings.setIdentifier": {
+      "description": "Stores your MCP identifier (SSH public key ID) so all future requests include it automatically.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Your MCP Bridge identifier (linked to your public key).",
+            "minLength": 5
+          }
+        },
+        "required": ["identifier"]
+      }
+    },
+
     "checkout.create": {
       "description": "Creates a checkout session using MCP Bridge API.",
       "input_schema": {
         "type": "object",
+
         "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Your MCP identifier provided via settings.setIdentifier. Optional because it can be preloaded.",
+            "nullable": true
+          },
+
           "environment": {
             "type": "string",
             "enum": ["TEST", "DEVELOP", "UAT", "LOCAL"]
@@ -102,13 +124,11 @@
               { "required": ["name"] },
               { "required": ["country"] }
             ],
-            "minProperties": 1,
-            "maxProperties": 1,
             "additionalProperties": false
           },
 
           "payload": {
-            "description": "Request body, automatically validated for PaymentRequest or Subscription.",
+            "description": "Request body, automatically validated for PaymentRequest or Subscription request.",
             "oneOf": [
               {
                 "title": "PaymentRequest",
@@ -126,6 +146,7 @@
                 },
                 "required": ["payment"]
               },
+
               {
                 "title": "SubscriptionRequest",
                 "type": "object",
