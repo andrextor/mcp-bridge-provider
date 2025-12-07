@@ -1,8 +1,8 @@
 {
     "version": 2,
     "functions": {
-        "api/mcp.js": {
-            "runtime": "nodejs20.x"
+        "api/**/*.js": {
+            "runtime": "node@20.x"
         }
     },
     "routes": [
