@@ -1,0 +1,11 @@
+{
+  "mcp_server": {
+    "name": "mcp-bridge-provider",
+    "description": "Serverless MCP provider for interacting with MCP Bridge API (Checkout, Gateway, and more).",
+    "version": "1.0.0",
+    "endpoint": {
+      "type": "http",
+      "url": "https://<YOUR_PROJECT>.vercel.app/mcp"
+    }
+  }
+}
