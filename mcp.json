@@ -1,0 +1,166 @@
+{
+  "name": "mcp-bridge-provider",
+  "version": "1.0.0",
+  "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, Gateway REST, and more).",
+  "entry_point": "index.js",
+  "capabilities": {
+    "logging": "debug"
+  },
+
+  "definitions": {
+    "Buyer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "document": { "type": "string" },
+        "documentType": { "type": "string" },
+        "mobile": { "type": "number" }
+      },
+      "required": [
+        "name",
+        "surname",
+        "email",
+        "document",
+        "documentType",
+        "mobile"
+      ]
+    },
+
+    "Amount": {
+      "type": "object",
+      "properties": {
+        "currency": { "type": "string" },
+        "total": { "type": "number" }
+      },
+      "required": ["currency", "total"]
+    },
+
+    "Payment": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "$ref": "#/definitions/Amount" },
+        "subscribe": { "type": "boolean" }
+      },
+      "required": ["reference", "description", "amount", "subscribe"]
+    },
+
+    "BaseRequest": {
+      "type": "object",
+      "properties": {
+        "locale": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "returnUrl": { "type": "string", "format": "uri" },
+        "userAgent": { "type": "string" }
+      },
+      "required": ["locale", "ipAddress", "returnUrl", "userAgent"]
+    },
+
+    "Subscription": {
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["reference", "description"]
+    }
+  },
+
+  "tools": {
+    "settings.setIdentifier": {
+      "description": "Stores your MCP identifier (SSH public key ID) so all future requests include it automatically.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Your MCP Bridge identifier (linked to your public key).",
+            "minLength": 5
+          }
+        },
+        "required": ["identifier"]
+      }
+    },
+
+    "checkout.create": {
+      "description": "Creates a checkout session using MCP Bridge API.",
+      "input_schema": {
+        "type": "object",
+
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "description": "Your MCP identifier provided via settings.setIdentifier. Optional because it can be preloaded.",
+            "nullable": true
+          },
+
+          "environment": {
+            "type": "string",
+            "enum": ["TEST", "DEVELOP", "UAT", "LOCAL"]
+          },
+
+          "site": {
+            "type": "object",
+            "description": "Selects the user site. Only one field is allowed.",
+            "properties": {
+              "id": {
+                "type": "number",
+                "description": "Exact site ID registered by the user."
+              },
+              "name": {
+                "type": "string",
+                "description": "Partial or full name of the site."
+              },
+              "country": {
+                "type": "string",
+                "description": "Country of the site (auto-resolves environment)."
+              }
+            },
+            "oneOf": [
+              { "required": ["id"] },
+              { "required": ["name"] },
+              { "required": ["country"] }
+            ],
+            "additionalProperties": false
+          },
+
+          "payload": {
+            "description": "Request body, automatically validated for PaymentRequest or Subscription request.",
+            "oneOf": [
+              {
+                "title": "PaymentRequest",
+                "type": "object",
+                "allOf": [{ "$ref": "#/definitions/BaseRequest" }],
+                "properties": {
+                  "buyer": {
+                    "oneOf": [
+                      { "$ref": "#/definitions/Buyer" },
+                      { "type": "null" }
+                    ]
+                  },
+                  "payment": { "$ref": "#/definitions/Payment" },
+                  "paymentMethod": { "type": ["string", "null"] }
+                },
+                "required": ["payment"]
+              },
+
+              {
+                "title": "SubscriptionRequest",
+                "type": "object",
+                "properties": {
+                  "subscription": { "$ref": "#/definitions/Subscription" }
+                },
+                "required": ["subscription"]
+              }
+            ]
+          }
+        },
+
+        "required": ["environment", "site", "payload"]
+      }
+    }
+  }
+}

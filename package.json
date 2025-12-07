@@ -1,0 +1,25 @@
+{
+    "name": "mcp-bridge-provider",
+    "version": "1.0.0",
+    "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, and more).",
+    "type": "module",
+    "main": "index.ts",
+    "entry_point": "index.ts",
+    "license": "MIT",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.24.3",
+        "dotenv": "^16.4.0",
+        "node-fetch": "^3.3.2",
+        "zod": "^4.1.13"
+    },
+    "scripts": {
+        "start": "tsx index.ts",
+        "dev": "tsx watch index.ts",
+        "build": "tsc"
+    },
+    "devDependencies": {
+        "@types/node": "^20.19.25",
+        "tsx": "^4.21.0",
+        "typescript": "^5.4.5"
+    }
+}
