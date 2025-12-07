@@ -1,53 +1,31 @@
-import "dotenv/config";
-import http from "node:http";
-import fetch from "node-fetch";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { registerSetIdentifierTool } from "./tools/settings/setIdentifier.js";
-import { registerCheckoutCreateTool } from "./tools/checkout/create.js";
-// -----------------------------
-// ENV VARS
-// -----------------------------
-const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL;
-const MCP_IDENTIFIER = process.env.MCP_IDENTIFIER;
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerSetIdentifierTool } from "./tools/settings/setIdentifier";
+import { registerCheckoutCreateTool } from "./tools/checkout/create";
 
-if (!MCP_BRIDGE_URL || !MCP_IDENTIFIER) {
-    console.error("❌ Missing MCP_BRIDGE_URL or MCP_IDENTIFIER in .env");
-    process.exit(1);
-}
+const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL!;
 
-// -----------------------------
-// MCP SERVER
-// -----------------------------
 const server = new McpServer({
     name: "mcp-bridge-provider",
     version: "1.0.0",
 });
 
-// -----------------------------
-// TOOL
-// -----------------------------
-registerSetIdentifierTool(server);
-registerCheckoutCreateTool(server, MCP_BRIDGE_URL);
+let initialized = false;
+let transport: StreamableHTTPServerTransport;
 
-// -----------------------------
-// START SERVER (HTTP MCP)
-// -----------------------------
-const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => crypto.randomUUID(),
-});
+export default async function handler(req: any, res: any) {
+    if (!initialized) {
+        transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => crypto.randomUUID(),
+        });
 
-const httpServer = http.createServer(async (req, res) => {
-    if (req.url === "/mcp") {
-        await transport.handleRequest(req, res);
-    } else {
-        res.writeHead(404);
-        res.end("Not MCP");
+        registerSetIdentifierTool(server);
+        registerCheckoutCreateTool(server, MCP_BRIDGE_URL);
+        await server.connect(transport);
+
+        initialized = true;
     }
-});
 
-await server.connect(transport);
-
-httpServer.listen(4000, () => {
-    console.log("🚀 MCP Bridge provider listening on http://localhost:4000/mcp");
-});
+    
+    return transport.handleRequest(req, res);
+}
