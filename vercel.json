@@ -1,8 +1,18 @@
 {
-    "framework": "none",
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "framework": null,
+    "cleanUrls": false,
+    "trailingSlash": false,
     "functions": {
         "api/mcp.js": {
-            "runtime": "nodejs20.x"
+            "runtime": "nodejs20.x",
+            "maxDuration": 30,
+            "supportsCancellation": false,
+            "includeFiles": "{tools,schemas}/**/*"
         }
-    }
+    },
+    "regions": [
+        "iad1"
+    ],
+    "public": false
 }
