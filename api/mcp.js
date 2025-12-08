@@ -1,6 +1,8 @@
+// api/mcp.js - Handler mejorado y modular
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerSetIdentifierTool } from "../tools/settings/setIdentifier.js";
 import { registerCheckoutCreateTool } from "../tools/checkout/create.js";
+import mcpConfig from "../mcp.json" assert { type: "json" };
 
 const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL;
 
@@ -10,8 +12,8 @@ let serverInstance = null;
 function getServer() {
     if (!serverInstance) {
         serverInstance = new McpServer({
-            name: "mcp-bridge-provider",
-            version: "1.0.0",
+            name: mcpConfig.name,
+            version: mcpConfig.version,
         });
 
         // Registrar todas las herramientas de forma modular
@@ -22,137 +24,133 @@ function getServer() {
     return serverInstance;
 }
 
+// Extraer información de tools desde mcp.json
+function getToolsMetadata() {
+    return Object.entries(mcpConfig.tools || {}).map(([name, config]) => ({
+        name,
+        description: config.description,
+        inputSchema: config.input_schema,
+    }));
+}
+
+// Manejadores de métodos JSON-RPC
+const methodHandlers = {
+    initialize: (request, server) => ({
+        jsonrpc: "2.0",
+        result: {
+            protocolVersion: "2024-11-05",
+            capabilities: mcpConfig.capabilities || { tools: {} },
+            serverInfo: {
+                name: mcpConfig.name,
+                version: mcpConfig.version,
+                description: mcpConfig.description,
+            },
+        },
+        id: request.id,
+    }),
+
+    "tools/list": (request) => ({
+        jsonrpc: "2.0",
+        result: {
+            tools: getToolsMetadata(),
+        },
+        id: request.id,
+    }),
+
+    "tools/call": async (request, server) => {
+        const { name, arguments: args } = request.params;
+
+        const toolHandlers = server._tools;
+        const tool = toolHandlers?.get(name);
+
+        if (!tool) {
+            throw new Error(`Unknown tool: ${name}`);
+        }
+
+        const result = await tool.execute(args);
+
+        return {
+            jsonrpc: "2.0",
+            result: result,
+            id: request.id,
+        };
+    },
+};
+
+// Handler principal
 export default async function handler(req, res) {
+    // Configurar CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
 
+    // Preflight
     if (req.method === "OPTIONS") {
         return res.status(200).end();
+    }
+
+    // Solo aceptar POST
+    if (req.method !== "POST") {
+        return res.status(405).json({
+            jsonrpc: "2.0",
+            error: {
+                code: -32000,
+                message: "Method not allowed. Use POST for JSON-RPC requests.",
+            },
+            id: null,
+        });
     }
 
     const server = getServer();
 
     try {
-        if (req.method === "GET") {
-            return res.status(400).json({ jsonrpc: "2.0", error: { message: "Not valid http method" }, id: null });
+        const request = req.body;
+
+        // Validar JSON-RPC 2.0
+        if (!request || !request.jsonrpc || request.jsonrpc !== "2.0") {
+            return res.status(400).json({
+                jsonrpc: "2.0",
+                error: {
+                    code: -32600,
+                    message: "Invalid Request: Must be JSON-RPC 2.0",
+                },
+                id: request?.id || null,
+            });
         }
 
-        if (req.method === "POST") {
-            const request = req.body;
+        // Buscar y ejecutar el handler del método
+        const methodHandler = methodHandlers[request.method];
 
-            if (!request || !request.jsonrpc || request.jsonrpc !== "2.0") {
-                return res.status(400).json({
-                    jsonrpc: "2.0",
-                    error: { code: -32600, message: "Invalid Request: Must be JSON-RPC 2.0" },
-                    id: null,
-                });
-            }
-
-            if (request.method === "initialize") {
-                return res.status(200).json({
-                    jsonrpc: "2.0",
-                    result: {
-                        protocolVersion: "2024-11-05",
-                        capabilities: { tools: {} },
-                        serverInfo: {
-                            name: "mcp-bridge-provider",
-                            version: "1.0.0",
-                        },
-                    },
-                    id: request.id,
-                });
-            }
-
-            if (request.method === "tools/list") {
-                return res.status(200).json({
-                    jsonrpc: "2.0",
-                    result: {
-                        tools: [
-                            {
-                                name: "settings.setIdentifier",
-                                description: "Registers your MCP identifier for future authenticated requests.",
-                                inputSchema: {
-                                    type: "object",
-                                    properties: {
-                                        identifier: {
-                                            type: "string",
-                                            description: "Your MCP identifier (minimum 10 characters)",
-                                            minLength: 10,
-                                        },
-                                    },
-                                    required: ["identifier"],
-                                },
-                            },
-                            {
-                                name: "checkout.create",
-                                description: "Creates a new checkout session in MCP Bridge",
-                                inputSchema: {
-                                    type: "object",
-                                    properties: {
-                                        amount: {
-                                            type: "number",
-                                            description: "Amount to charge (must be positive)",
-                                        },
-                                        currency: {
-                                            type: "string",
-                                            description: "Currency code (3 characters, e.g., USD)",
-                                            minLength: 3,
-                                            maxLength: 3,
-                                        },
-                                        description: {
-                                            type: "string",
-                                            description: "Optional description for the checkout",
-                                        },
-                                    },
-                                    required: ["amount", "currency"],
-                                },
-                            },
-                        ],
-                    },
-                    id: request.id,
-                });
-            }
-
-            if (request.method === "tools/call") {
-                const { name, arguments: args } = request.params;
-
-                try {
-                    const toolHandlers = server._tools;
-                    const tool = toolHandlers?.get(name);
-
-                    if (!tool) {
-                        throw new Error(`Unknown tool: ${name}`);
-                    }
-
-                    const result = await tool.execute(args);
-
-                    return res.status(200).json({
-                        jsonrpc: "2.0",
-                        result: result,
-                        id: request.id,
-                    });
-                } catch (error) {
-                    console.error(`Error executing ${name}:`, error);
-                    return res.status(200).json({
-                        jsonrpc: "2.0",
-                        error: { code: -32603, message: error.message },
-                        id: request.id,
-                    });
-                }
-            }
-
+        if (!methodHandler) {
             return res.status(200).json({
                 jsonrpc: "2.0",
-                error: { code: -32601, message: `Method not found: ${request.method}` },
+                error: {
+                    code: -32601,
+                    message: `Method not found: ${request.method}`,
+                },
                 id: request.id,
             });
         }
 
-        return res.status(405).json({
-            error: "Method not allowed",
-            allowed: ["GET", "POST", "OPTIONS"],
-        });
+        // Ejecutar el handler
+        try {
+            const response = await methodHandler(request, server);
+            return res.status(200).json(response);
+        } catch (error) {
+            console.error(`Error executing ${request.method}:`, error);
+            return res.status(200).json({
+                jsonrpc: "2.0",
+                error: {
+                    code: -32603,
+                    message: error.message,
+                    data: process.env.NODE_ENV === "development" ? {
+                        stack: error.stack,
+                        method: request.method,
+                    } : undefined,
+                },
+                id: request.id,
+            });
+        }
 
     } catch (error) {
         console.error("MCP Handler Error:", error);
