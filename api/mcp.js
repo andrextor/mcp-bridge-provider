@@ -29,11 +29,15 @@ function getServer() {
         });
 
         // Registrar herramienta: settings.setIdentifier
-        serverInstance.registerTool({
-            name: "settings.setIdentifier",
-            description: "Registers your MCP identifier for future authenticated requests.",
-            parameters: SetIdentifierSchema,
-            execute: async ({ identifier }) => {
+        serverInstance.registerTool(
+            "settings.setIdentifier",
+            {
+                description: "Registers your MCP identifier for future authenticated requests.",
+                inputSchema: {
+                    identifier: z.string().min(10).describe("Your MCP identifier (minimum 10 characters)")
+                }
+            },
+            async ({ identifier }) => {
                 storedIdentifier = identifier;
                 return {
                     content: [
@@ -44,14 +48,20 @@ function getServer() {
                     ],
                 };
             }
-        });
+        );
 
         // Registrar herramienta: checkout.create
-        serverInstance.registerTool({
-            name: "checkout.create",
-            description: "Creates a new checkout session in MCP Bridge",
-            parameters: CheckoutCreateSchema,
-            execute: async (args) => {
+        serverInstance.registerTool(
+            "checkout.create",
+            {
+                description: "Creates a new checkout session in MCP Bridge",
+                inputSchema: {
+                    amount: z.number().positive().describe("Amount to charge (must be positive)"),
+                    currency: z.string().length(3).describe("Currency code (3 characters, e.g., USD)"),
+                    description: z.string().optional().describe("Optional description for the checkout")
+                }
+            },
+            async (args) => {
                 if (!storedIdentifier) {
                     throw new Error(
                         "Identifier not set. Please use settings.setIdentifier first."
@@ -86,7 +96,7 @@ function getServer() {
                     ],
                 };
             }
-        });
+        );
     }
 
     return serverInstance;
