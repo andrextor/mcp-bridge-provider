@@ -5,13 +5,10 @@
     "trailingSlash": false,
     "functions": {
         "api/mcp.js": {
-            "runtime": "nodejs20.x",
+            "runtime": "@vercel/node",
             "maxDuration": 30,
             "supportsCancellation": false,
-            "includeFiles": [
-                "tools/**",
-                "schemas/**"
-            ]
+            "includeFiles": "{tools,schemas}/**/*"
         }
     },
     "regions": [
