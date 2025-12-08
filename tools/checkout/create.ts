@@ -1,4 +1,4 @@
-import { getIdentifier } from "../state";
+import { getIdentifier } from "../settings/state";
 import { CheckoutCreateSchema } from "../../schemas/checkout.schema";
 import type { McpServer as McpServerType } from "@modelcontextprotocol/sdk/server/mcp.js";
 

@@ -2,12 +2,13 @@
   "compilerOptions": {
     "strict": true,
     "outDir": "dist",
-    "module": "esnext",
+    "module": "nodenext",
     "target": "es2022",
-    "moduleResolution": "bundler",
+    "moduleResolution": "nodenext",
     "allowJs": false,
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "resolveJsonModule": true
   },
   "include": ["./"]
 }

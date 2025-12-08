@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { SiteSchema } from "./site.schema";
-import { PayloadSchema } from "./payload.schema";
+import { SiteSchema } from "./site.schema.js";
+import { PayloadSchema } from "./payload.schema.js";
 
 export const CheckoutCreateSchema = z.object({
     identifier: z.string().uuid(),

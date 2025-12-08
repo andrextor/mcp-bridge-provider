@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { setIdentifier } from "../state";
+import { setIdentifier } from "./state.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerSetIdentifierTool(server: McpServer) {
