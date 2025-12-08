@@ -1,15 +1,15 @@
 import { z } from "zod";
 import { setIdentifier } from "./state.js";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerSetIdentifierTool(server: McpServer) {
     server.registerTool(
         "settings.setIdentifier",
         {
             description: "Registers your MCP identifier for future authenticated requests.",
-            inputSchema: z.object({
-                identifier: z.string().min(10, "Identifier must be valid"),
-            }),
+            inputSchema: {
+                identifier: z.string().min(10).describe("Your MCP identifier (minimum 10 characters)")
+            }
         },
         async ({ identifier }) => {
             setIdentifier(identifier);
@@ -18,7 +18,7 @@ export function registerSetIdentifierTool(server: McpServer) {
                 content: [
                     {
                         type: "text",
-                        text: `Identifier stored: ${identifier}`,
+                        text: `✓ Identifier stored successfully: ${identifier}`,
                     },
                 ],
             };

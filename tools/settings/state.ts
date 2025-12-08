@@ -1,9 +1,9 @@
-let USER_IDENTIFIER: string | null = null;
+let identifier: string | null = null;
 
-export function setIdentifier(id: string) {
-    USER_IDENTIFIER = id;
+export function setIdentifier(newIdentifier: string) {
+    identifier = newIdentifier;
 }
 
 export function getIdentifier() {
-    return USER_IDENTIFIER;
+    return identifier;
 }
