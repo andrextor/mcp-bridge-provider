@@ -2,11 +2,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerSetIdentifierTool } from "../tools/settings/setIdentifier.js";
 import { registerCheckoutCreateTool } from "../tools/checkout/create.js";
-import mcpConfig from "../mcp.json" assert { type: "json" };
+import { readFileSync } from "fs";
+import { join } from "path";
 
 const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL;
 
-// Instancia única del servidor
+const mcpConfig = JSON.parse(
+    readFileSync(join(process.cwd(), "mcp.json"), "utf-8")
+);
+
 let serverInstance = null;
 
 function getServer() {
