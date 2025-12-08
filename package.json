@@ -13,7 +13,7 @@
         "zod": "^4.1.13"
     },
     "scripts": {
-        "start": "tsx index.ts",
+        "start": "node api/mcp.js",
         "dev": "tsx watch index.ts",
         "build": "tsc"
     },
