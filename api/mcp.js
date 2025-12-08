@@ -1,11 +1,24 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
-import { registerSetIdentifierTool } from "../tools/settings/setIdentifier.js";
-import { registerCheckoutCreateTool } from "../tools/checkout/create.js";
+// api/mcp.js
+import Server from "@modelcontextprotocol/sdk/server/index.js";
+import { z } from "zod";
 
 const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL;
 
-// Crear servidor una sola vez (fuera del handler para reutilizar)
+// Estado en memoria
+let storedIdentifier = null;
+
+// Schemas de validación
+const SetIdentifierSchema = z.object({
+    identifier: z.string().min(10, "Identifier must be at least 10 characters"),
+});
+
+const CheckoutCreateSchema = z.object({
+    amount: z.number().positive("Amount must be positive"),
+    currency: z.string().length(3, "Currency must be 3 characters (e.g., USD)"),
+    description: z.string().optional(),
+});
+
+// Instancia única del servidor
 let serverInstance = null;
 
 function getServer() {
@@ -22,70 +35,265 @@ function getServer() {
             }
         );
 
-        // Registrar las herramientas
-        registerSetIdentifierTool(serverInstance);
-        registerCheckoutCreateTool(serverInstance, MCP_BRIDGE_URL);
+        // Handler para listar herramientas disponibles
+        serverInstance.setRequestHandler(
+            { method: "tools/list" },
+            async () => {
+                return {
+                    tools: [
+                        {
+                            name: "settings.setIdentifier",
+                            description: "Registers your MCP identifier for future authenticated requests.",
+                            inputSchema: {
+                                type: "object",
+                                properties: {
+                                    identifier: {
+                                        type: "string",
+                                        description: "Your MCP identifier (minimum 10 characters)",
+                                        minLength: 10,
+                                    },
+                                },
+                                required: ["identifier"],
+                            },
+                        },
+                        {
+                            name: "checkout.create",
+                            description: "Creates a new checkout session in MCP Bridge",
+                            inputSchema: {
+                                type: "object",
+                                properties: {
+                                    amount: {
+                                        type: "number",
+                                        description: "Amount to charge (must be positive)",
+                                    },
+                                    currency: {
+                                        type: "string",
+                                        description: "Currency code (3 characters, e.g., USD)",
+                                        minLength: 3,
+                                        maxLength: 3,
+                                    },
+                                    description: {
+                                        type: "string",
+                                        description: "Optional description for the checkout",
+                                    },
+                                },
+                                required: ["amount", "currency"],
+                            },
+                        },
+                    ],
+                };
+            }
+        );
+
+        // Handler para ejecutar herramientas
+        serverInstance.setRequestHandler(
+            { method: "tools/call" },
+            async (request) => {
+                const { name, arguments: args } = request.params;
+
+                // Herramienta: settings.setIdentifier
+                if (name === "settings.setIdentifier") {
+                    const validation = SetIdentifierSchema.safeParse(args);
+
+                    if (!validation.success) {
+                        throw new Error(`Invalid arguments: ${validation.error.message}`);
+                    }
+
+                    storedIdentifier = validation.data.identifier;
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `✓ Identifier stored successfully: ${storedIdentifier}`,
+                            },
+                        ],
+                    };
+                }
+
+                // Herramienta: checkout.create
+                if (name === "checkout.create") {
+                    const validation = CheckoutCreateSchema.safeParse(args);
+
+                    if (!validation.success) {
+                        throw new Error(`Invalid arguments: ${validation.error.message}`);
+                    }
+
+                    if (!storedIdentifier) {
+                        throw new Error(
+                            "Identifier not set. Please use settings.setIdentifier first."
+                        );
+                    }
+
+                    // Llamada a la API de MCP Bridge
+                    const response = await fetch(`${MCP_BRIDGE_URL}/checkout/create`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${storedIdentifier}`,
+                        },
+                        body: JSON.stringify(validation.data),
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(
+                            `API Error (${response.status}): ${errorData.message || response.statusText}`
+                        );
+                    }
+
+                    const data = await response.json();
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `✓ Checkout created successfully:\n\n${JSON.stringify(data, null, 2)}`,
+                            },
+                        ],
+                    };
+                }
+
+                // Herramienta no encontrada
+                throw new Error(`Unknown tool: ${name}`);
+            }
+        );
     }
+
     return serverInstance;
 }
 
 export default async function handler(req, res) {
-    // Manejar CORS preflight
-    if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Configurar CORS
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Accept");
+
+    // Manejar preflight OPTIONS
+    if (req.method === "OPTIONS") {
         return res.status(200).end();
     }
 
-    // Manejar GET para SSE
-    if (req.method === 'GET') {
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache, no-transform');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('X-Accel-Buffering', 'no');
+    const server = getServer();
 
-        const server = getServer();
-        const transport = new SSEServerTransport("/api/mcp", res);
+    try {
+        // Endpoint GET para conexión SSE (Server-Sent Events)
+        if (req.method === "GET") {
+            res.setHeader("Content-Type", "text/event-stream");
+            res.setHeader("Cache-Control", "no-cache, no-transform");
+            res.setHeader("Connection", "keep-alive");
+            res.setHeader("X-Accel-Buffering", "no");
 
-        await server.connect(transport);
+            // Enviar evento de conexión inicial
+            res.write('data: {"jsonrpc":"2.0","method":"connected"}\n\n');
 
-        // Mantener la conexión abierta
-        req.on('close', () => {
-            transport.close();
-        });
+            // Mantener conexión viva con keepalive cada 30 segundos
+            const keepAlive = setInterval(() => {
+                res.write(":keepalive\n\n");
+            }, 30000);
 
-        return;
-    }
-
-    // Manejar POST para mensajes
-    if (req.method === 'POST') {
-        try {
-            const server = getServer();
-
-            // Procesar mensaje del cliente
-            const message = req.body;
-
-            // Aquí deberías procesar el mensaje según tu lógica
-            // Este es un ejemplo básico
-            res.status(200).json({
-                success: true,
-                message: "Message received"
+            // Limpiar cuando el cliente cierre la conexión
+            req.on("close", () => {
+                clearInterval(keepAlive);
             });
-        } catch (error) {
-            console.error('Error processing message:', error);
-            res.status(500).json({
-                error: error.message
+
+            return;
+        }
+
+        // Endpoint POST para mensajes JSON-RPC
+        if (req.method === "POST") {
+            const request = req.body;
+
+            // Validar formato JSON-RPC
+            if (!request || !request.jsonrpc || request.jsonrpc !== "2.0") {
+                return res.status(400).json({
+                    jsonrpc: "2.0",
+                    error: {
+                        code: -32600,
+                        message: "Invalid Request: Must be JSON-RPC 2.0",
+                    },
+                    id: null,
+                });
+            }
+
+            // Manejar inicialización del protocolo MCP
+            if (request.method === "initialize") {
+                return res.status(200).json({
+                    jsonrpc: "2.0",
+                    result: {
+                        protocolVersion: "2024-11-05",
+                        capabilities: {
+                            tools: {},
+                        },
+                        serverInfo: {
+                            name: "mcp-bridge-provider",
+                            version: "1.0.0",
+                        },
+                    },
+                    id: request.id,
+                });
+            }
+
+            // Delegar a los handlers registrados en el servidor
+            const handlers = server._requestHandlers;
+            const handler = handlers?.get(request.method);
+
+            if (handler) {
+                try {
+                    const result = await handler(request);
+                    return res.status(200).json({
+                        jsonrpc: "2.0",
+                        result: result,
+                        id: request.id,
+                    });
+                } catch (error) {
+                    console.error(`Error executing ${request.method}:`, error);
+                    return res.status(200).json({
+                        jsonrpc: "2.0",
+                        error: {
+                            code: -32603,
+                            message: error.message,
+                        },
+                        id: request.id,
+                    });
+                }
+            }
+
+            // Método no encontrado
+            return res.status(200).json({
+                jsonrpc: "2.0",
+                error: {
+                    code: -32601,
+                    message: `Method not found: ${request.method}`,
+                },
+                id: request.id,
             });
         }
-        return;
-    }
 
-    // Método no permitido
-    res.status(405).json({ error: 'Method not allowed' });
+        // Método HTTP no permitido
+        return res.status(405).json({
+            error: "Method not allowed",
+            allowed: ["GET", "POST", "OPTIONS"],
+        });
+
+    } catch (error) {
+        console.error("MCP Handler Error:", error);
+
+        if (!res.headersSent) {
+            return res.status(500).json({
+                jsonrpc: "2.0",
+                error: {
+                    code: -32603,
+                    message: "Internal server error",
+                    data: process.env.NODE_ENV === "development" ? error.stack : undefined,
+                },
+                id: null,
+            });
+        }
+    }
 }
 
+// Configuración de la API de Vercel
 export const config = {
     api: {
         bodyParser: true,
