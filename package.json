@@ -15,8 +15,7 @@
     },
     "scripts": {
         "start": "node api/mcp.js",
-        "dev": "tsx watch script/index.ts",
-        "build": "tsc"
+        "dev": "tsx watch script/index.ts"
     },
     "devDependencies": {
         "@types/node": "^20.19.25",
