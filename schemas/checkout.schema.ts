@@ -3,7 +3,7 @@ import { SiteSchema } from "./site.schema";
 import { PayloadSchema } from "./payload.schema";
 
 export const CheckoutCreateSchema = z.object({
-    identifier: z.uuid(),
+    identifier: z.string().uuid(),
     environment: z.enum(["TEST", "DEVELOP", "UAT", "LOCAL"]),
     site: SiteSchema,
     payload: PayloadSchema,
