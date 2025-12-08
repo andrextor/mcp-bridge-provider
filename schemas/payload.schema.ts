@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { PaymentRequestSchema } from "./paymentRequest.schema";
-import { SubscriptionSchema } from "./subscription.schema";
+import { PaymentRequestSchema } from "./paymentRequest.schema.js";
+import { SubscriptionSchema } from "./subscription.schema.js";
 
 export const PayloadSchema = z.union([
     PaymentRequestSchema,

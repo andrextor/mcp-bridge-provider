@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { BaseRequestSchema } from "./baseRequest.schema";
-import { BuyerSchema } from "./buyer.schema";
-import { PaymentSchema } from "./payment.schema";
+import { BaseRequestSchema } from "./baseRequest.schema.js";
+import { BuyerSchema } from "./buyer.schema.js";
+import { PaymentSchema } from "./payment.schema.js";
 
 export const PaymentRequestSchema = BaseRequestSchema.extend({
     buyer: BuyerSchema.nullable(),
