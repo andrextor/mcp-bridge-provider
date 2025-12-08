@@ -10,8 +10,6 @@
             "includeFiles": "{tools,schemas}/**/*"
         }
     },
-    "regions": [
-        "iad1"
-    ],
+    "regions": ["iad1"],
     "public": false
 }
