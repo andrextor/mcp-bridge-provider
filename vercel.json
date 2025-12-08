@@ -3,5 +3,15 @@
     "framework": null,
     "cleanUrls": false,
     "trailingSlash": false,
+    "functions": {
+        "api/mcp.js": {
+            "maxDuration": 30,
+            "supportsCancellation": false,
+            "includeFiles": "{tools,schemas}/**/*"
+        }
+    },
+    "regions": [
+        "iad1"
+    ],
     "public": false
 }
