@@ -8,7 +8,10 @@
             "runtime": "nodejs20.x",
             "maxDuration": 30,
             "supportsCancellation": false,
-            "includeFiles": "{tools,schemas}/**/*"
+            "includeFiles": [
+                "tools/**",
+                "schemas/**"
+            ]
         }
     },
     "regions": [
