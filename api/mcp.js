@@ -1,5 +1,5 @@
 // api/mcp.js
-import Server from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL;
@@ -23,141 +23,70 @@ let serverInstance = null;
 
 function getServer() {
     if (!serverInstance) {
-        serverInstance = new Server(
-            {
-                name: "mcp-bridge-provider",
-                version: "1.0.0",
-            },
-            {
-                capabilities: {
-                    tools: {},
-                },
-            }
-        );
+        serverInstance = new McpServer({
+            name: "mcp-bridge-provider",
+            version: "1.0.0",
+        });
 
-        // Handler para listar herramientas disponibles
-        serverInstance.setRequestHandler(
-            { method: "tools/list" },
-            async () => {
+        // Registrar herramienta: settings.setIdentifier
+        serverInstance.registerTool({
+            name: "settings.setIdentifier",
+            description: "Registers your MCP identifier for future authenticated requests.",
+            parameters: SetIdentifierSchema,
+            execute: async ({ identifier }) => {
+                storedIdentifier = identifier;
                 return {
-                    tools: [
+                    content: [
                         {
-                            name: "settings.setIdentifier",
-                            description: "Registers your MCP identifier for future authenticated requests.",
-                            inputSchema: {
-                                type: "object",
-                                properties: {
-                                    identifier: {
-                                        type: "string",
-                                        description: "Your MCP identifier (minimum 10 characters)",
-                                        minLength: 10,
-                                    },
-                                },
-                                required: ["identifier"],
-                            },
-                        },
-                        {
-                            name: "checkout.create",
-                            description: "Creates a new checkout session in MCP Bridge",
-                            inputSchema: {
-                                type: "object",
-                                properties: {
-                                    amount: {
-                                        type: "number",
-                                        description: "Amount to charge (must be positive)",
-                                    },
-                                    currency: {
-                                        type: "string",
-                                        description: "Currency code (3 characters, e.g., USD)",
-                                        minLength: 3,
-                                        maxLength: 3,
-                                    },
-                                    description: {
-                                        type: "string",
-                                        description: "Optional description for the checkout",
-                                    },
-                                },
-                                required: ["amount", "currency"],
-                            },
+                            type: "text",
+                            text: `✓ Identifier stored successfully: ${storedIdentifier}`,
                         },
                     ],
                 };
             }
-        );
+        });
 
-        // Handler para ejecutar herramientas
-        serverInstance.setRequestHandler(
-            { method: "tools/call" },
-            async (request) => {
-                const { name, arguments: args } = request.params;
-
-                // Herramienta: settings.setIdentifier
-                if (name === "settings.setIdentifier") {
-                    const validation = SetIdentifierSchema.safeParse(args);
-
-                    if (!validation.success) {
-                        throw new Error(`Invalid arguments: ${validation.error.message}`);
-                    }
-
-                    storedIdentifier = validation.data.identifier;
-
-                    return {
-                        content: [
-                            {
-                                type: "text",
-                                text: `✓ Identifier stored successfully: ${storedIdentifier}`,
-                            },
-                        ],
-                    };
+        // Registrar herramienta: checkout.create
+        serverInstance.registerTool({
+            name: "checkout.create",
+            description: "Creates a new checkout session in MCP Bridge",
+            parameters: CheckoutCreateSchema,
+            execute: async (args) => {
+                if (!storedIdentifier) {
+                    throw new Error(
+                        "Identifier not set. Please use settings.setIdentifier first."
+                    );
                 }
 
-                // Herramienta: checkout.create
-                if (name === "checkout.create") {
-                    const validation = CheckoutCreateSchema.safeParse(args);
+                // Llamada a la API de MCP Bridge
+                const response = await fetch(`${MCP_BRIDGE_URL}/checkout/create`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${storedIdentifier}`,
+                    },
+                    body: JSON.stringify(args),
+                });
 
-                    if (!validation.success) {
-                        throw new Error(`Invalid arguments: ${validation.error.message}`);
-                    }
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(
+                        `API Error (${response.status}): ${errorData.message || response.statusText}`
+                    );
+                }
 
-                    if (!storedIdentifier) {
-                        throw new Error(
-                            "Identifier not set. Please use settings.setIdentifier first."
-                        );
-                    }
+                const data = await response.json();
 
-                    // Llamada a la API de MCP Bridge
-                    const response = await fetch(`${MCP_BRIDGE_URL}/checkout/create`, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${storedIdentifier}`,
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: `✓ Checkout created successfully:\n\n${JSON.stringify(data, null, 2)}`,
                         },
-                        body: JSON.stringify(validation.data),
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({}));
-                        throw new Error(
-                            `API Error (${response.status}): ${errorData.message || response.statusText}`
-                        );
-                    }
-
-                    const data = await response.json();
-
-                    return {
-                        content: [
-                            {
-                                type: "text",
-                                text: `✓ Checkout created successfully:\n\n${JSON.stringify(data, null, 2)}`,
-                            },
-                        ],
-                    };
-                }
-
-                // Herramienta no encontrada
-                throw new Error(`Unknown tool: ${name}`);
+                    ],
+                };
             }
-        );
+        });
     }
 
     return serverInstance;
@@ -234,20 +163,126 @@ export default async function handler(req, res) {
                 });
             }
 
-            // Delegar a los handlers registrados en el servidor
-            const handlers = server._requestHandlers;
-            const handler = handlers?.get(request.method);
+            // Listar herramientas disponibles
+            if (request.method === "tools/list") {
+                return res.status(200).json({
+                    jsonrpc: "2.0",
+                    result: {
+                        tools: [
+                            {
+                                name: "settings.setIdentifier",
+                                description: "Registers your MCP identifier for future authenticated requests.",
+                                inputSchema: {
+                                    type: "object",
+                                    properties: {
+                                        identifier: {
+                                            type: "string",
+                                            description: "Your MCP identifier (minimum 10 characters)",
+                                            minLength: 10,
+                                        },
+                                    },
+                                    required: ["identifier"],
+                                },
+                            },
+                            {
+                                name: "checkout.create",
+                                description: "Creates a new checkout session in MCP Bridge",
+                                inputSchema: {
+                                    type: "object",
+                                    properties: {
+                                        amount: {
+                                            type: "number",
+                                            description: "Amount to charge (must be positive)",
+                                        },
+                                        currency: {
+                                            type: "string",
+                                            description: "Currency code (3 characters, e.g., USD)",
+                                            minLength: 3,
+                                            maxLength: 3,
+                                        },
+                                        description: {
+                                            type: "string",
+                                            description: "Optional description for the checkout",
+                                        },
+                                    },
+                                    required: ["amount", "currency"],
+                                },
+                            },
+                        ],
+                    },
+                    id: request.id,
+                });
+            }
 
-            if (handler) {
+            // Ejecutar herramientas
+            if (request.method === "tools/call") {
+                const { name, arguments: args } = request.params;
+
                 try {
-                    const result = await handler(request);
+                    let result;
+
+                    if (name === "settings.setIdentifier") {
+                        const validation = SetIdentifierSchema.safeParse(args);
+                        if (!validation.success) {
+                            throw new Error(`Invalid arguments: ${validation.error.message}`);
+                        }
+                        storedIdentifier = validation.data.identifier;
+                        result = {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `✓ Identifier stored successfully: ${storedIdentifier}`,
+                                },
+                            ],
+                        };
+                    } else if (name === "checkout.create") {
+                        const validation = CheckoutCreateSchema.safeParse(args);
+                        if (!validation.success) {
+                            throw new Error(`Invalid arguments: ${validation.error.message}`);
+                        }
+
+                        if (!storedIdentifier) {
+                            throw new Error(
+                                "Identifier not set. Please use settings.setIdentifier first."
+                            );
+                        }
+
+                        const response = await fetch(`${MCP_BRIDGE_URL}/checkout/create`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${storedIdentifier}`,
+                            },
+                            body: JSON.stringify(validation.data),
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json().catch(() => ({}));
+                            throw new Error(
+                                `API Error (${response.status}): ${errorData.message || response.statusText}`
+                            );
+                        }
+
+                        const data = await response.json();
+                        result = {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `✓ Checkout created successfully:\n\n${JSON.stringify(data, null, 2)}`,
+                                },
+                            ],
+                        };
+                    } else {
+                        throw new Error(`Unknown tool: ${name}`);
+                    }
+
                     return res.status(200).json({
                         jsonrpc: "2.0",
                         result: result,
                         id: request.id,
                     });
                 } catch (error) {
-                    console.error(`Error executing ${request.method}:`, error);
+                    console.error(`Error executing ${name}:`, error);
                     return res.status(200).json({
                         jsonrpc: "2.0",
                         error: {
