@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { SiteSchema } from "./site.schema.js";
-import { PayloadSchema } from "./payload.schema.js";
+import { PaymentRequestSchema } from "./paymentRequest.schema.js";
+import { SubscriptionRequestSchema } from "./subscriptionRequest.schema copy.js";
 
 export const CheckoutCreateSchema = z.object({
-    identifier: z.string().uuid(),
-    environment: z.enum(["TEST", "DEVELOP", "UAT", "LOCAL"]),
+    identifier: z.string().optional().describe("MCP identifier (optional if preloaded)"),
+    environment: z.enum(["TEST", "DEVELOP", "UAT", "LOCAL"]).describe("Target environment"),
     site: SiteSchema,
-    payload: PayloadSchema,
+    payload: z.union([PaymentRequestSchema, SubscriptionRequestSchema]).describe("Request payload"),
 });
 
 export type CheckoutCreateInput = z.infer<typeof CheckoutCreateSchema>;

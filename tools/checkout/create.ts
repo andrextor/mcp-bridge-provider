@@ -1,51 +1,76 @@
 import { z } from "zod";
 import { getIdentifier } from "../settings/state.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { CheckoutCreateSchema } from "../../schemas/checkout.schema.js";
 
-export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string) {
+export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string): void {
     server.registerTool(
         "checkout.create",
         {
-            description: "Creates a new checkout session in MCP Bridge",
+            description: `Creates a checkout session using MCP Bridge API.`,
             inputSchema: {
-                amount: z.number().positive().describe("Amount to charge (must be positive)"),
-                currency: z.string().length(3).describe("Currency code (3 characters, e.g., USD)"),
-                description: z.string().optional().describe("Optional description for the checkout")
-            }
+                identifier: z.string().optional(),
+                environment: z.enum(["TEST", "DEVELOP", "UAT", "LOCAL"]),
+                site: z.object({
+                    id: z.number().optional(),
+                    name: z.string().optional(),
+                    country: z.string().optional(),
+                }),
+                payload: z.any(),
+            },
         },
         async (args) => {
-            const identifier = getIdentifier();
+            // 1. Validar con tu schema oficial
+            const validation = CheckoutCreateSchema.safeParse(args);
+            if (!validation.success) {
+                const msg = validation.error.errors
+                    .map(e => `${e.path.join('.')}: ${e.message}`)
+                    .join(", ");
 
-            if (!identifier) {
-                throw new Error("Identifier not set. Please use settings.setIdentifier first.");
+                throw new Error(`Validation failed: ${msg}`);
             }
 
-            const response = await fetch(`${bridgeUrl}/checkout/create`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${identifier}`,
-                },
-                body: JSON.stringify(args),
-            });
+            const data = validation.data;
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
+            // 2. Obtener identifier
+            const identifier = data.identifier || getIdentifier();
+            if (!identifier) {
                 throw new Error(
-                    `API Error (${response.status}): ${errorData.message || response.statusText}`
+                    "Identifier not set. Provide it or call settings.setIdentifier first."
                 );
             }
 
-            const data = await response.json();
+            // 3. Construcción correcta del body de tu API MCP
+            const timestamp = Math.floor(Date.now() / 1000);
 
-            return {
-                content: [
-                    {
-                        type: "text",
-                        text: `✓ Checkout created successfully:\n\n${JSON.stringify(data, null, 2)}`,
-                    },
-                ],
+            const requestBody = {
+                identifier,
+                timestamp,
+                api: "CHECKOUT",
+                action: "CREATE",
+                site: data.site,
+                environment: data.environment,
+                payload: data.payload,
             };
+
+            // 5. Llamada POST al bridge
+            const response = await fetch(bridgeUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            // 6. Manejo de errores
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(
+                    `MCP Bridge API Error (${response.status}): ${err.error || err.message || "Unknown"}`
+                );
+            }
+
+            return await response.json();
         }
     );
 }

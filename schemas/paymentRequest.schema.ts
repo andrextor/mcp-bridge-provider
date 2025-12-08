@@ -4,9 +4,9 @@ import { BuyerSchema } from "./buyer.schema.js";
 import { PaymentSchema } from "./payment.schema.js";
 
 export const PaymentRequestSchema = BaseRequestSchema.extend({
-    buyer: BuyerSchema.nullable(),
+    buyer: BuyerSchema.nullable().optional().describe("Buyer information"),
     payment: PaymentSchema,
-    paymentMethod: z.string().nullable(),
+    paymentMethod: z.string().nullable().optional().describe("Preferred payment method"),
 });
 
 export type PaymentRequest = z.infer<typeof PaymentRequestSchema>;
