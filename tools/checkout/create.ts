@@ -14,7 +14,9 @@ export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string)
             const identifier = data.identifier || getIdentifier();
             if (!identifier) {
                 throw new Error(
-                    "Identifier not set. Provide it or call settings.setIdentifier first."
+                    "MISSING_IDENTIFIER: No MCP identifier is configured. " +
+                    "Ask the user for their MCP identifier string, call the tool `settings.setIdentifier` with that value, " +
+                    "and then call `checkout.create` again."
                 );
             }
 
