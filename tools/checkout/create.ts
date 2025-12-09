@@ -42,15 +42,38 @@ export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string)
                 body: JSON.stringify(requestBody),
             });
 
+            const bridgeJson = await response.json().catch(() => null);
+
             // 6. Manejo de errores
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(
-                    `MCP Bridge API Error (${response.status}): ${err.error || err.message || "Unknown"}`
-                );
+                const msg =
+                    (bridgeJson && (bridgeJson.error || bridgeJson.message)) ||
+                    `HTTP ${response.status}`;
+                throw new Error(`MCP Bridge API Error: ${msg}`);
             }
 
-            return await response.json();
+            const processUrl = bridgeJson?.processUrl ?? "Unknown";
+
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text:
+                            `Checkout session created successfully.\n` +
+                            `Request ID: ${bridgeJson.requestId}\n` +
+                            `Process URL: ${processUrl}`,
+                    },
+                    {
+                        type: "text",
+                        text: `Raw response JSON:\n${JSON.stringify(
+                            bridgeJson,
+                            null,
+                            2
+                        )}`,
+                    },
+                ],
+                structuredContent: bridgeJson,
+            };
         }
     );
 }
