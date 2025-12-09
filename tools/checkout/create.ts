@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { getIdentifier } from "../settings/state.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CheckoutCreateInput, CheckoutCreateSchema } from "../../schemas/checkout.schema.js";
