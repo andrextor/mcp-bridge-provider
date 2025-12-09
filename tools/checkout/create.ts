@@ -29,6 +29,7 @@ export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string)
                 site: data.site,
                 environment: data.environment,
                 payload: data.payload,
+                signature: "test-signature",
             };
 
             // 5. Llamada POST al bridge
