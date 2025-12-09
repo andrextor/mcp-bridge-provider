@@ -5,7 +5,7 @@ import { registerCheckoutCreateTool } from "../tools/checkout/create.js";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const MCP_BRIDGE_URL = process.env.MCP_BRIDGE_URL ?? 'https://mcp-bridge-api.onrender.com/api/v1/mcp/execute';
+const baseUrl = 'https://mcp-bridge-api.onrender.com/api/v1/mcp/execute';
 
 const mcpConfig = JSON.parse(
     readFileSync(join(process.cwd(), "mcp.json"), "utf-8")
@@ -25,10 +25,7 @@ function getServer() {
         // Registrar todas las herramientas de forma modular
         const setIdTool = registerSetIdentifierTool(serverInstance);
         toolRegistry.set("settings.setIdentifier", setIdTool);
-        const checkoutTool = registerCheckoutCreateTool(
-            serverInstance,
-            MCP_BRIDGE_URL
-        );
+        const checkoutTool = registerCheckoutCreateTool(serverInstance, baseUrl);
 
         toolRegistry.set("checkout.create", checkoutTool);
     }
