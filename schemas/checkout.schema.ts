@@ -5,6 +5,9 @@ import { SubscriptionRequestSchema } from "./subscriptionRequest.schema copy.js"
 
 export const CheckoutCreateSchema = z.object({
     identifier: z.string().optional().describe("MCP identifier (optional if preloaded)"),
+    timestamp: z.string(),
+    api: z.enum(['checkout', 'gateway']),
+    action: z.enum(['create', 'query', 'collect', 'reverse']),
     environment: z.enum(["TEST", "DEVELOP", "UAT", "LOCAL"]).describe("Target environment"),
     site: SiteSchema,
     payload: z.union([PaymentRequestSchema, SubscriptionRequestSchema]).describe("Request payload"),
