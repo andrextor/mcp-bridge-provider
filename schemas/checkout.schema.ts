@@ -4,7 +4,7 @@ import { PaymentRequestSchema } from "./paymentRequest.schema.js";
 import { SubscriptionRequestSchema } from "./subscriptionRequest.schema copy.js";
 
 export const CheckoutCreateSchema = z.object({
-    identifier: z.string().optional().describe("MCP identifier (optional if preloaded)"),
+    identifier: z.string().describe("MCP identifier (optional if preloaded)"),
     timestamp: z.string(),
     api: z.enum(['checkout', 'gateway']),
     action: z.enum(['create', 'query', 'collect', 'reverse']),

@@ -1,7 +1,7 @@
 {
   "name": "mcp-bridge-provider",
   "version": "1.0.0",
-  "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, Gateway REST, and more).",
+  "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, and more).",
   "entry_point": "index.js",
   "capabilities": {
     "tools": {},
@@ -93,7 +93,7 @@
 
         "properties": {
           "identifier": {
-            "type": ["string", "null"],
+            "type": "string",
             "description": "Your MCP identifier provided via settings.setIdentifier. Optional because it can be preloaded."
           },
 
@@ -128,32 +128,121 @@
           },
 
           "payload": {
-            "description": "Request body, automatically validated for PaymentRequest or Subscription request.",
+            "description": "Creates a PlacetoPay checkout session. The 'payload' MUST be either a PaymentRequest (with a 'payment' object) or a SubscriptionRequest (with a 'subscription' object). Do not send flat fields like {\"action\":\"PAY\",\"amount\":10000}.",
             "oneOf": [
               {
                 "title": "PaymentRequest",
                 "type": "object",
+                "description": "Use this shape to create a payment session. The 'payment' object contains amount, currency, reference, description, etc.",
                 "allOf": [{ "$ref": "#/definitions/BaseRequest" }],
                 "properties": {
                   "buyer": {
+                    "description": "Buyer information. Optional but recommended.",
                     "oneOf": [
                       { "$ref": "#/definitions/Buyer" },
                       { "type": "null" }
                     ]
                   },
-                  "payment": { "$ref": "#/definitions/Payment" },
-                  "paymentMethod": { "type": ["string", "null"] }
+                  "payment": {
+                    "description": "Payment details. DO NOT put amount/currency at the top level, always inside this 'payment' object.",
+                    "$ref": "#/definitions/Payment"
+                  },
+                  "paymentMethod": {
+                    "type": ["string", "null"],
+                    "description": "Preferred payment method or null."
+                  },
+                  "skipResult": {
+                    "type": "boolean",
+                    "description": "If true, do not show result page.",
+                    "default": false
+                  },
+                  "payload": {
+                    "type": "boolean",
+                    "description": "Internal flag used by PlacetoPay.",
+                    "default": false
+                  },
+                  "noBuyerFill": {
+                    "type": "boolean",
+                    "description": "If true, do not prefill buyer info.",
+                    "default": false
+                  },
+                  "captureAddress": {
+                    "type": "boolean",
+                    "description": "If true, capture address in the form.",
+                    "default": false
+                  },
+                  "_paymentMethod": {
+                    "type": "string",
+                    "description": "Internal payment method hint (e.g. 'cash')."
+                  },
+                  "notificationUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Webhook URL for notifications."
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Free-form metadata sent to PlacetoPay.",
+                    "additionalProperties": true
+                  }
                 },
-                "required": ["payment"]
+                "required": ["payment"],
+                "examples": [
+                  {
+                    "locale": "es_CO",
+                    "ipAddress": "181.137.193.33",
+                    "returnUrl": "https://mysite.com/response",
+                    "userAgent": "PlacetoPay Sandbox",
+                    "buyer": {
+                      "name": "Andres",
+                      "surname": "Lopez",
+                      "email": "andres2@yopmail.com",
+                      "document": "111111111",
+                      "documentType": "CC",
+                      "mobile": "+573005156705"
+                    },
+                    "payment": {
+                      "description": "Pruebas tarjeta ALIA",
+                      "reference": "312321",
+                      "amount": {
+                        "currency": "COP",
+                        "total": 10000
+                      },
+                      "allowPartial": false,
+                      "subscribe": false
+                    },
+                    "skipResult": false,
+                    "payload": false,
+                    "noBuyerFill": false,
+                    "captureAddress": false,
+                    "_paymentMethod": "cash",
+                    "notificationUrl": "https://example.test/notification",
+                    "paymentMethod": null,
+                    "metadata": {
+                      "initiatorIndicator": "CARDHOLDER_COF"
+                    }
+                  }
+                ]
               },
-
               {
                 "title": "SubscriptionRequest",
                 "type": "object",
+                "description": "Use this shape to create a subscription. It MUST contain a 'subscription' object.",
                 "properties": {
-                  "subscription": { "$ref": "#/definitions/Subscription" }
+                  "subscription": {
+                    "$ref": "#/definitions/Subscription",
+                    "description": "Subscription details object."
+                  }
                 },
-                "required": ["subscription"]
+                "required": ["subscription"],
+                "examples": [
+                  {
+                    "subscription": {
+                      "reference": "plan-001",
+                      "description": "Plan mensual"
+                    }
+                  }
+                ]
               }
             ]
           }
