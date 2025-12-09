@@ -2,6 +2,8 @@ import { z } from "zod";
 import { getIdentifier } from "../settings/state.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CheckoutCreateSchema } from "../../schemas/checkout.schema.js";
+import { PaymentRequestSchema } from "../../schemas/paymentRequest.schema.js";
+import { SubscriptionRequestSchema } from "../../schemas/subscriptionRequest.schema copy.js";
 
 export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string) {
     return server.registerTool(
@@ -16,7 +18,9 @@ export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string)
                     name: z.string().optional(),
                     country: z.string().optional(),
                 }),
-                payload: z.any(),
+                payload: z
+                    .union([PaymentRequestSchema, SubscriptionRequestSchema])
+                    .describe("Request payload"),
             },
         },
         async (args) => {
