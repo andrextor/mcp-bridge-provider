@@ -3,8 +3,8 @@ import { getIdentifier } from "../settings/state.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CheckoutCreateSchema } from "../../schemas/checkout.schema.js";
 
-export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string): void {
-    server.registerTool(
+export function registerCheckoutCreateTool(server: McpServer, bridgeUrl: string) {
+    return server.registerTool(
         "checkout.create",
         {
             description: `Creates a checkout session using MCP Bridge API.`,

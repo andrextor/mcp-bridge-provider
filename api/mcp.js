@@ -11,6 +11,8 @@ const mcpConfig = JSON.parse(
     readFileSync(join(process.cwd(), "mcp.json"), "utf-8")
 );
 
+const toolRegistry = new Map();
+
 let serverInstance = null;
 
 function getServer() {
@@ -21,8 +23,14 @@ function getServer() {
         });
 
         // Registrar todas las herramientas de forma modular
-        registerSetIdentifierTool(serverInstance);
-        registerCheckoutCreateTool(serverInstance, MCP_BRIDGE_URL);
+        const setIdTool = registerSetIdentifierTool(serverInstance);
+        toolRegistry.set("settings.setIdentifier", setIdTool);
+        const checkoutTool = registerCheckoutCreateTool(
+            serverInstance,
+            MCP_BRIDGE_URL
+        );
+
+        toolRegistry.set("checkout.create", checkoutTool);
     }
 
     return serverInstance;
@@ -64,18 +72,21 @@ const methodHandlers = {
     "tools/call": async (request, server) => {
         const { name, arguments: args } = request.params;
 
-        const toolHandlers = server._tools;
-        const tool = toolHandlers?.get(name);
+        const tool = toolRegistry.get(name);
 
-        if (!tool) {
+        if (!tool || !tool.enabled) {
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        const result = await tool.execute(args);
+        const result = await tool.handler(args ?? {}, {
+            request,
+            sessionId: "",
+            server: server.server,
+        });
 
         return {
             jsonrpc: "2.0",
-            result: result,
+            result,
             id: request.id,
         };
     },

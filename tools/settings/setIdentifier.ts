@@ -3,7 +3,7 @@ import { setIdentifier } from "./state.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerSetIdentifierTool(server: McpServer) {
-    server.registerTool(
+    return server.registerTool(
         "settings.setIdentifier",
         {
             description: "Registers your MCP identifier for future authenticated requests.",
