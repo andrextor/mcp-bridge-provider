@@ -133,7 +133,7 @@
               {
                 "title": "PaymentRequest",
                 "type": "object",
-                "description": "Use this shape to create a payment session.",
+                "description": "Use this shape to create a payment session. Always include a 'payment' object, and put the customer email inside 'buyer.email'.",
                 "allOf": [{ "$ref": "#/definitions/BaseRequest" }],
                 "properties": {
                   "buyer": {
@@ -144,12 +144,42 @@
                     ]
                   },
                   "payment": {
-                    "description": "Payment details. amount and currency MUST be nested here, not at the top level.",
+                    "description": "Payment details. 'amount' and 'currency' MUST be nested here, not at the top level.",
                     "$ref": "#/definitions/Payment"
                   },
                   "paymentMethod": {
                     "type": ["string", "null"],
                     "description": "Preferred payment method or null."
+                  },
+                  "skipResult": {
+                    "type": "boolean",
+                    "description": "If true, do not show result page.",
+                    "default": false
+                  },
+                  "payload": {
+                    "type": "boolean",
+                    "description": "Internal flag used by PlacetoPay.",
+                    "default": false
+                  },
+                  "noBuyerFill": {
+                    "type": "boolean",
+                    "description": "If true, do not prefill buyer info.",
+                    "default": false
+                  },
+                  "captureAddress": {
+                    "type": "boolean",
+                    "description": "If true, capture address in the form.",
+                    "default": false
+                  },
+                  "notificationUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Webhook URL for notifications."
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Free-form metadata sent to PlacetoPay.",
+                    "additionalProperties": true
                   }
                 },
                 "required": ["payment"],
@@ -157,27 +187,37 @@
                 "examples": [
                   {
                     "locale": "es_CO",
-                    "ipAddress": "181.50.20.1",
-                    "returnUrl": "https://example.com/return",
-                    "userAgent": "MCP",
+                    "ipAddress": "181.137.193.33",
+                    "returnUrl": "https://mysite.com/response",
+                    "userAgent": "PlacetoPay Sandbox",
                     "buyer": {
                       "name": "Andres",
                       "surname": "Lopez",
                       "email": "andres3@yopmail.com",
                       "document": "123456",
                       "documentType": "CC",
-                      "mobile": 3105550000
+                      "mobile": "+573005156705"
                     },
                     "payment": {
+                      "description": "Pago de prueba 20.000 COP",
                       "reference": "Ref-2025-ANDRES-20K",
-                      "description": "Pago por servicio 20.000 COP",
                       "amount": {
                         "currency": "COP",
                         "total": 20000
                       },
+                      "allowPartial": false,
                       "subscribe": false
                     },
-                    "paymentMethod": null
+                    "skipResult": false,
+                    "payload": false,
+                    "noBuyerFill": false,
+                    "captureAddress": false,
+                    "_paymentMethod": "cash",
+                    "notificationUrl": "https://example.test/notification",
+                    "paymentMethod": null,
+                    "metadata": {
+                      "initiatorIndicator": "CARDHOLDER_COF"
+                    }
                   }
                 ]
               },
