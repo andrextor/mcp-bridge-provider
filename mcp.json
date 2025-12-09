@@ -4,7 +4,8 @@
   "description": "MCP provider for interacting with MCP Bridge API (Checkout, Gateway, Gateway REST, and more).",
   "entry_point": "index.js",
   "capabilities": {
-    "logging": "debug"
+    "tools": {},
+    "logging": {}
   },
 
   "definitions": {
@@ -92,9 +93,8 @@
 
         "properties": {
           "identifier": {
-            "type": "string",
-            "description": "Your MCP identifier provided via settings.setIdentifier. Optional because it can be preloaded.",
-            "nullable": true
+            "type": ["string", "null"],
+            "description": "Your MCP identifier provided via settings.setIdentifier. Optional because it can be preloaded."
           },
 
           "environment": {
