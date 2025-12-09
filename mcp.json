@@ -156,11 +156,6 @@
                     "description": "If true, do not show result page.",
                     "default": false
                   },
-                  "payload": {
-                    "type": "boolean",
-                    "description": "Internal flag used by PlacetoPay.",
-                    "default": false
-                  },
                   "noBuyerFill": {
                     "type": "boolean",
                     "description": "If true, do not prefill buyer info.",
