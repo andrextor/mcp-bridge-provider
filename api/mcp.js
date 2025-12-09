@@ -75,17 +75,11 @@ const methodHandlers = {
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        const result = await tool.handler(args ?? {}, {
+        return await tool.handler(args ?? {}, {
             request,
             sessionId: "",
             server: server.server,
         });
-
-        return {
-            jsonrpc: "2.0",
-            result,
-            id: request.id,
-        };
     },
 };
 
